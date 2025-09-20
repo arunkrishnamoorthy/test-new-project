@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// setup-branch-protection.js - Node.js script for branch protection setup
+// setup-branch-protection-esm.mjs - ES module version for Chalk 5.6.2
 
-const { Octokit } = require('@octokit/rest');
-const chalk = require('chalk');
+import { Octokit } from '@octokit/rest';
+import chalk from 'chalk';
 
 class BranchProtectionSetup {
   constructor(token) {
@@ -144,29 +144,11 @@ class BranchProtectionSetup {
     }
   }
 
-  async createSecret(owner, repo, secretName, secretValue) {
-    try {
-      // Get repository public key for encryption
-      const { data: publicKeyData } = await this.octokit.rest.actions.getRepoPublicKey({ owner, repo });
-      
-      // Note: This requires sodium library for encryption
-      // For now, we'll just log instructions for manual setup
-      this.log(`Secret '${secretName}' needs to be set manually`, 'warning');
-      this.log(`Go to: https://github.com/${owner}/${repo}/settings/secrets/actions`, 'info');
-      
-      return false; // Return false to indicate manual setup needed
-    } catch (error) {
-      this.log(`Failed to setup secret ${secretName}: ${error.message}`, 'error');
-      return false;
-    }
-  }
-
   async setupRepository(owner, repo, config = {}) {
     const {
       branches = { main: 2, develop: 1, staging: 1 },
       enforceAdmins = true,
-      enableSecurity = true,
-      secrets = {}
+      enableSecurity = true
     } = config;
 
     console.log(chalk.blue.bold('🔒 Branch Protection Setup'));
@@ -207,15 +189,6 @@ class BranchProtectionSetup {
     for (const branch of Object.keys(branches)) {
       if (results[branch]) {
         await this.testBranchProtection(owner, repo, branch);
-      }
-    }
-
-    // Setup secrets (manual for now)
-    if (Object.keys(secrets).length > 0) {
-      console.log('');
-      this.log('Setting up repository secrets...');
-      for (const [secretName, secretValue] of Object.entries(secrets)) {
-        await this.createSecret(owner, repo, secretName, secretValue);
       }
     }
 
@@ -262,18 +235,15 @@ async function main() {
   const args = process.argv.slice(2);
   
   if (args.length < 2 || args.includes('--help') || args.includes('-h')) {
-    console.log('Usage: node setup-branch-protection.js <owner> <repo> [token]');
+    console.log('Usage: node setup-branch-protection.mjs <owner> <repo> [token]');
     console.log('');
     console.log('Examples:');
-    console.log('  node setup-branch-protection.js arunkrishnamoorthy my-repo');
-    console.log('  GITHUB_TOKEN=ghp_xxx node setup-branch-protection.js arunkrishnamoorthy my-repo');
-    console.log('  node setup-branch-protection.js arunkrishnamoorthy my-repo ghp_xxx');
+    console.log('  node setup-branch-protection.mjs arunkrishnamoorthy my-repo');
+    console.log('  GITHUB_TOKEN=ghp_xxx node setup-branch-protection.mjs arunkrishnamoorthy my-repo');
+    console.log('  node setup-branch-protection.mjs arunkrishnamoorthy my-repo ghp_xxx');
     console.log('');
     console.log('Environment variables:');
     console.log('  GITHUB_TOKEN - GitHub personal access token');
-    console.log('');
-    console.log('Configuration:');
-    console.log('  Edit the config object in the script to customize branch protection rules');
     process.exit(0);
   }
 
@@ -298,11 +268,7 @@ async function main() {
         staging: 1   // 1 required review
       },
       enforceAdmins: true,
-      enableSecurity: true,
-      secrets: {
-        // Add secrets here if you want to set them programmatically
-        // Note: Requires additional encryption setup
-      }
+      enableSecurity: true
     };
 
     const result = await setup.setupRepository(owner, repo, config);
@@ -321,12 +287,12 @@ async function main() {
 }
 
 // Export for use as module
-module.exports = BranchProtectionSetup;
+export default BranchProtectionSetup;
 
 // Run as CLI if called directly
-if (require.main === module) {
+if (process.argv[1] === new URL(import.meta.url).pathname) {
   main().catch(error => {
-    console.error(chalk.red(`Fatal error: ${error.message}`));
+    console.error(`Fatal error: ${error.message}`);
     process.exit(1);
   });
 }
